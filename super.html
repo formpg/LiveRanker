@@ -38,13 +38,11 @@
     background:#f3eee1;padding:2px 8px;border-radius:5px;word-break:break-all}
   .muted{color:var(--muted);font-size:.88rem}
   .err{color:var(--accent-dk);font-weight:700}
-  .logo{font-weight:900;letter-spacing:.06em;font-size:1.3rem;
+  .logo{font-weight:900;letter-spacing:.12em;font-size:1.4rem;
     background:linear-gradient(135deg,var(--accent),#ff6b3d,#c79a3a);
     -webkit-background-clip:text;-webkit-text-fill-color:transparent;
     background-clip:text}
-  .logo .dot{-webkit-text-fill-color:var(--accent);animation:pulse 2s ease-in-out infinite}
   .logo .sub{-webkit-text-fill-color:var(--muted);font-size:.85rem;font-weight:400}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
     background:var(--ink);color:#fff;padding:12px 20px;border-radius:10px;font-weight:700;
     box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:50;opacity:0;transition:.25s;pointer-events:none}
@@ -59,7 +57,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="logo">ライブ<span class="dot">●</span>ランカー <span class="sub">裏画面</span></div>
+    <div class="logo">ライブランカー <span class="sub">裏画面</span></div>
     <a href="./index.html" class="muted" style="text-decoration:none">← 通常画面</a>
   </div>
   <div id="view"></div>

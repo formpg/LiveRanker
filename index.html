@@ -70,12 +70,10 @@
   .voteopt input{width:auto;margin:0}
   .voteopt.disabled{opacity:.45;cursor:not-allowed}
   .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
-  .logo{font-weight:900;letter-spacing:.06em;font-size:1.3rem;
+  .logo{font-weight:900;letter-spacing:.12em;font-size:1.4rem;
     background:linear-gradient(135deg,var(--accent),#ff6b3d,var(--gold));
     -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-    background-clip:text;text-shadow:none;position:relative}
-  .logo .dot{-webkit-text-fill-color:var(--accent);animation:pulse 2s ease-in-out infinite}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    background-clip:text}
   .notice{padding:16px;border-radius:12px;text-align:center;font-weight:700;margin:16px 0}
   .notice.closed{background:#fdeee9;color:var(--accent-dk);border:1.5px solid var(--accent)}
   .notice.hidden{background:#f1efe7;color:var(--muted);border:1.5px solid var(--line)}
@@ -86,7 +84,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="logo">ライブ<span class="dot">●</span>ランカー</div>
+    <div class="logo">ライブランカー</div>
     <div id="navArea" class="row"></div>
   </div>
 
@@ -188,7 +186,7 @@ async function adminGate(){
     <h2>新しいライブを作成</h2>
     <div class="card">
       <label>ライブ名</label>
-      <input id="newName" placeholder="例：第12回 ネタ祭り">
+      <input id="newName" placeholder="ライブ名を入力">
       <label>開催日</label>
       <input id="newDate" type="date">
       <label>お客さんの人数</label>
@@ -374,7 +372,7 @@ async function adminLive(id){
     const units=r.units||[];
     tab.innerHTML=`<h2>香盤・ユニット</h2>
       <p class="muted">香盤を1行ずつ貼り付けてください。各行がユニットとして登録され、投票画面に反映されます。</p>
-      <textarea id="kb" placeholder="ナイスミドル&#10;赤色コブラ&#10;サンライズ・トリオ"></textarea>
+      <textarea id="kb" placeholder="1行につき1組ずつ入力"></textarea>
       <div class="row"><button class="primary" id="kbReg">この内容で登録</button>
         <span class="muted">※ 既存のユニットは置き換わります</span></div>
       <h3>現在のユニット（${units.length}組）</h3><div id="ulist"></div>`;
@@ -404,9 +402,27 @@ async function adminLive(id){
         ${pws.map(p=>`<span class="pw">${p}</span>`).join(" ")}</div></div>`;
     $("#copyAll").onclick=()=>{navigator.clipboard.writeText(pws.join("\n"));toast("コピーしました");};
     $("#pwPdf").onclick=()=>{const {jsPDF}=window.jspdf;const pdf=new jsPDF();
-      pdf.setFontSize(14);pdf.text(`Audience PW - ${live.name}`,14,18);
-      pdf.setFontSize(12);let x=14,y=32;
-      pws.forEach((p,i)=>{pdf.text(p,x,y);x+=34;if((i+1)%5===0){x=14;y+=10;}if(y>280){pdf.addPage();y=20;}});
+      const pw=14, ph=297, cols=4, cellW=(210-pw*2)/cols, cellH=22;
+      let y=18;
+      pdf.setFontSize(16);pdf.setFont("helvetica","bold");
+      pdf.setFontSize(18);pdf.text("Password",pw,y);y+=10;
+      pdf.setDrawColor(180);pdf.setLineDashPattern([2,2],0);
+      pdf.setFontSize(16);pdf.setFont("courier","bold");
+      pws.forEach((p,i)=>{
+        const col=i%cols, row=Math.floor(i/cols);
+        const cx=pw+col*cellW, cy=y+row*cellH;
+        if(cy+cellH>ph-10){pdf.addPage();y=18;return;}
+        pdf.setLineDashPattern([2,2],0);pdf.setDrawColor(180);
+        if(col===0)pdf.line(pw,cy,210-pw,cy);
+        if(row===0||col>0)pdf.line(cx,y,cx,cy+cellH);
+        pdf.setLineDashPattern([],0);
+        pdf.text(p,cx+cellW/2,cy+cellH/2+2,{align:"center"});
+      });
+      const totalRows=Math.ceil(pws.length/cols);
+      const bottomY=y+totalRows*cellH;
+      pdf.setLineDashPattern([2,2],0);pdf.setDrawColor(180);
+      pdf.line(pw,bottomY,210-pw,bottomY);
+      pdf.line(210-pw,y,210-pw,bottomY);
       pdf.save(`passwords_${live.name}.pdf`);};
   }
 
