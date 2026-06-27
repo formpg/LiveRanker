@@ -133,6 +133,13 @@ function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show"
 function genPw(n=4){const c="ABCDEFGHJKMNPQRSTUVWXYZ23456789";let s="";for(let i=0;i<n;i++)s+=c[Math.floor(Math.random()*c.length)];return s;}
 function nav(hash){location.hash=hash;}
 async function rpc(fn,args){const {data,error}=await sb.rpc(fn,args);if(error)throw error;return data;}
+function parseKouban(text){
+  return text.split("\n")
+    .map(s=>s.trim())
+    .map(s=>s.replace(/^[0-9０-９]+[.．、。)\s]+/,"").trim())
+    .filter(Boolean)
+    .filter(s=>!/^(OPMC|中MC|EDMC|MC|OP|ED)$/i.test(s));
+}
 
 function modal(html){
   return new Promise(resolve=>{
@@ -382,19 +389,21 @@ async function adminLive(id){
 
     if(!hasUnits){
       tab.innerHTML=`<h2>香盤・ユニット</h2>
-        <p class="muted">香盤を1行ずつ貼り付けてください。各行がユニットとして登録され、投票画面に反映されます。</p>
+        <p class="muted">香盤を1行ずつ貼り付けてください。番号やOPMC・中MC・EDMCは自動で除外されます。</p>
         <textarea id="kb" placeholder="1行につき1組ずつ入力"></textarea>
         <div class="row"><button class="primary" id="kbReg">この内容で登録</button></div>
         <h3>現在のユニット（0組）</h3>
         <p class="muted">まだ登録がありません。</p>`;
       $("#kbReg").onclick=async()=>{
-        const names=$("#kb").value.split("\n").map(s=>s.trim()).filter(Boolean);
+        const names=parseKouban($("#kb").value);
         if(names.length===0){toast("1行以上入力してください");return;}
         $("#kbReg").disabled=true;
-        const payload=names.map(n=>({id:null,name:n}));
-        const res=await rpc("save_units",{p_live:id,p_admin_pw:adminPw,p_units:payload});
-        if(res==="ok"){toast(`${names.length}組を登録しました`);tabKouban();}
-        else toast("登録に失敗しました");
+        try{
+          const payload=names.map(n=>({id:null,name:n}));
+          const res=await rpc("save_units",{p_live:id,p_admin_pw:adminPw,p_units:payload});
+          if(res==="ok"){toast(`${names.length}組を登録しました`);tabKouban();}
+          else{toast("登録に失敗しました");$("#kbReg").disabled=false;}
+        }catch(e){toast("エラー: "+(e.message||e));$("#kbReg").disabled=false;console.error(e);}
       };
       return;
     }
@@ -458,7 +467,7 @@ async function adminLive(id){
         if(!$("#bulkArea").classList.contains("hide")) $("#bulkTa").focus();
       };
       $("#bulkOk").onclick=()=>{
-        const names=$("#bulkTa").value.split("\n").map(s=>s.trim()).filter(Boolean);
+        const names=parseKouban($("#bulkTa").value);
         if(!names.length){toast("1行以上入力してください");return;}
         names.forEach(n=>editList.push({id:null,name:n}));
         renderEditUI(editList);
@@ -468,10 +477,12 @@ async function adminLive(id){
         const valid=editList.filter(u=>u.name.trim());
         if(!valid.length){toast("1組以上入力してください");return;}
         $("#saveUnits").disabled=true;
-        const payload=valid.map(u=>({id:u.id||null,name:u.name.trim()}));
-        const res=await rpc("save_units",{p_live:id,p_admin_pw:adminPw,p_units:payload});
-        if(res==="ok"){toast("保存しました");tabKouban();}
-        else{toast("保存に失敗しました");$("#saveUnits").disabled=false;}
+        try{
+          const payload=valid.map(u=>({id:u.id||null,name:u.name.trim()}));
+          const res=await rpc("save_units",{p_live:id,p_admin_pw:adminPw,p_units:payload});
+          if(res==="ok"){toast("保存しました");tabKouban();}
+          else{toast("保存に失敗しました");$("#saveUnits").disabled=false;}
+        }catch(e){toast("エラー: "+(e.message||e));$("#saveUnits").disabled=false;console.error(e);}
       };
       $("#cancelEdit").onclick=()=>tabKouban();
     }
