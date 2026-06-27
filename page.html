@@ -365,7 +365,7 @@ async function adminLive(id){
   /* QR */
   function tabQr(){
     tab.innerHTML=`<h2>投票用QRコード</h2>
-      <p class="muted">会場に掲示してください。お客さんはこれを読み取って投票します。</p>
+      <p class="muted">お客さんに配布してください。お客さんはこれを読み取って投票します。</p>
       <div class="qrbox"><div id="qrc"></div>
         <p class="muted" style="word-break:break-all">${esc(voteUrl)}</p></div>
       <div class="row" style="margin-top:12px">
@@ -589,7 +589,7 @@ async function votePage(id){
     <div class="card">
       <label>あなたのパスワード</label>
       <input id="apw" placeholder="配られた4文字を入力" autocomplete="off">
-      <p class="muted">パスワードを入れてから、良かったユニットを<strong>${ruleText}</strong>選んでください。</p>
+      <p class="muted">パスワードを入れてから、面白かったユニットを<strong>${ruleText}</strong>選んでください。</p>
     </div>
     ${units.length===0?"<p class='muted'>準備中です。しばらくお待ちください。</p>":`
     <p class="muted">選択中：<span class="counter" id="cnt">0</span> / ${vpp}組${isExact?" （ちょうど"+vpp+"組選んでください）":""}</p>
