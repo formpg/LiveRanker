@@ -529,12 +529,15 @@ async function adminLive(id){
       pdf.save(`passwords_${live.name}.pdf`);};
   }
 
-  /* ライブ情報編集（票数も編集可。PWは不可） */
+  /* ライブ情報編集 */
   function tabInfo(){
     tab.innerHTML=`<h2>ライブ情報</h2>
       <div class="card">
         <label>ライブ名</label><input id="iName" value="${esc(live.name)}">
         <label>開催日</label><input id="iDate" type="date" value="${esc(live.date||"")}">
+        <label>お客さんの人数（現在 ${live.audience_count}人）</label>
+        <input id="iCount" type="number" min="${live.audience_count}" value="${live.audience_count}">
+        <p class="muted">※ 増やすことはできますが、減らすことはできません。増やした分のパスワードは自動追加されます。</p>
         <label>投票ルール</label>
         <div class="row">
           <select id="iVoteMode" style="width:auto;flex:0 0 auto">
@@ -544,18 +547,32 @@ async function adminLive(id){
           <input id="iVpp" type="number" min="1" value="${live.votes_per_person}" style="width:80px;flex:0 0 auto">
           <span class="muted">組選ぶ</span>
         </div>
-        <p class="muted">※ 管理者パスワード・お客さん人数はここでは変更できません。</p>
+        <p class="muted">※ 管理者パスワードは変更できません。</p>
         <button class="primary" id="iSave">保存</button>
       </div>`;
     $("#iSave").onclick=async()=>{
       const vpp=Math.max(parseInt($("#iVpp").value,10)||1,1);
       const voteMode=$("#iVoteMode").value;
-      const res=await rpc("update_live_info",
-        {p_live:id,p_admin_pw:adminPw,p_name:$("#iName").value.trim(),
-         p_date:$("#iDate").value||null,p_votes_per_person:vpp,p_vote_mode:voteMode});
-      if(res==="ok"){live.name=$("#iName").value.trim();live.date=$("#iDate").value;
-        live.votes_per_person=vpp;live.vote_mode=voteMode;toast("保存しました");}
-      else toast("保存に失敗しました");
+      const newCount=parseInt($("#iCount").value,10);
+      if(!newCount||newCount<live.audience_count){
+        toast(`人数は${live.audience_count}人以上にしてください`);return;}
+      const addCount=newCount-live.audience_count;
+      let newPws=[];
+      if(addCount>0){
+        const existing=new Set(live.audience_pws||[]);
+        while(newPws.length<addCount){const p=genPw(4);if(!existing.has(p)){existing.add(p);newPws.push(p);}}
+      }
+      try{
+        const res=await rpc("update_live_info",
+          {p_live:id,p_admin_pw:adminPw,p_name:$("#iName").value.trim(),
+           p_date:$("#iDate").value||null,p_votes_per_person:vpp,p_vote_mode:voteMode,
+           p_new_count:addCount>0?newCount:null,p_new_pws:addCount>0?newPws:null});
+        if(res==="ok"){live.name=$("#iName").value.trim();live.date=$("#iDate").value;
+          live.votes_per_person=vpp;live.vote_mode=voteMode;
+          if(addCount>0){live.audience_count=newCount;live.audience_pws=(live.audience_pws||[]).concat(newPws);}
+          toast("保存しました");}
+        else toast("保存に失敗しました");
+      }catch(e){toast("エラー: "+(e.message||e));console.error(e);}
     };
   }
 
