@@ -160,30 +160,41 @@ router();
 function renderNav(top){
   const n=$("#navArea");
   if(top==="vote"){n.innerHTML="";return;}
-  n.innerHTML=`<button class="ghost sm" onclick="location.hash='/'">トップ</button>`;
+  if(!top||top===""){
+    n.innerHTML=`<button class="ghost sm" onclick="location.hash='/admin'">ライブ作成</button>`;
+  }else{
+    n.innerHTML=`<button class="ghost sm" onclick="location.hash='/'">トップ</button>`;
+  }
 }
 
 /* ================================================================ ホーム */
-function home(){
+async function home(){
   view.innerHTML=`
     <span class="eyebrow">LIVE RANKER</span>
-    <h1>ライブランカー</h1>
+    <h1>トップ画面</h1>
     <p class="muted">お笑いライブの順位投票を、QRコードでかんたんに。</p>
-    <div class="card">
-      <h3>運営の方</h3>
-      <p class="muted">ライブの作成・管理・順位の確認はこちら。</p>
-      <button class="primary" onclick="location.hash='/admin'">管理者画面へ</button>
-    </div>
-    <p class="muted" style="margin-top:30px">お客さまは、会場のQRコードから投票画面に入れます。</p>`;
+    <h2>ライブ一覧</h2>
+    <div id="liveList"><p class="muted">読み込み中…</p></div>`;
+  const lives=await rpc("list_lives");
+  const list=$("#liveList");
+  const visibleLives = lives ? lives.filter(l => !l.is_hidden) : [];
+  if(visibleLives.length===0){list.innerHTML="<p class='muted'>まだライブがありません。右上の「ライブ作成」から作成できます。</p>";}
+  else{
+    list.innerHTML=visibleLives.map(l=>`
+      <div class="card"><div class="topbar">
+        <div><strong>${esc(l.name)}</strong>
+          ${l.is_closed?'<span class="pill closed">締切中</span>':'<span class="pill open">受付中</span>'}
+          <br><span class="muted">${esc(l.date||"日付未設定")}・お客さん ${l.audience_count}人・${l.vote_mode==="exact"?"ちょうど":"最大"}${l.votes_per_person}組</span></div>
+        <button class="primary sm" onclick="openLive('${l.id}')">管理する</button>
+      </div></div>`).join("");
+  }
 }
 
-/* ================================================================ 管理者ゲート */
+/* ================================================================ ライブ作成 */
 async function adminGate(){
-  const lives=await rpc("list_lives");
   view.innerHTML=`
-    <span class="eyebrow">ADMIN</span>
-    <h1>管理者画面</h1>
-    <h2>新しいライブを作成</h2>
+    <span class="eyebrow">CREATE</span>
+    <h1>ライブ作成</h1>
     <div class="card">
       <label>ライブ名</label>
       <input id="newName" placeholder="ライブ名を入力">
@@ -204,23 +215,7 @@ async function adminGate(){
       <input id="newAdminPw" placeholder="このライブを管理するためのパスワード">
       <p class="muted">⚠️ 管理者パスワードは作成後に確認できません。<strong>必ず控えてください。</strong></p>
       <button class="primary" id="createBtn">ライブを作成</button>
-    </div>
-    <h2>既存のライブ</h2>
-    <div id="liveList"></div>`;
-
-  const list=$("#liveList");
-  const visibleLives = lives ? lives.filter(l => !l.is_hidden) : [];
-  if(visibleLives.length===0){list.innerHTML="<p class='muted'>まだライブがありません。</p>";}
-  else{
-    list.innerHTML=visibleLives.map(l=>`
-      <div class="card"><div class="topbar">
-        <div><strong>${esc(l.name)}</strong>
-          ${l.is_hidden?'<span class="pill hidden">非表示</span>':''}
-          ${l.is_closed?'<span class="pill closed">締切中</span>':'<span class="pill open">受付中</span>'}
-          <br><span class="muted">${esc(l.date||"日付未設定")}・お客さん ${l.audience_count}人・${l.vote_mode==="exact"?"ちょうど":"最大"}${l.votes_per_person}組</span></div>
-        <button class="primary sm" onclick="openLive('${l.id}')">管理する</button>
-      </div></div>`).join("");
-  }
+    </div>`;
 
   $("#createBtn").onclick=async()=>{
     const name=$("#newName").value.trim();
