@@ -347,8 +347,12 @@ async function adminLive(id){
       if(!r.rows||r.rows.length===0){box.innerHTML="<p class='muted'>先に「香盤・ユニット」を登録してください。</p>";return;}
       box.innerHTML=`<p class="muted">投票した人 <strong>${r.total_voters}</strong>人 / ${live.audience_count}人　（総得票 ${r.total_picks}）</p>
         <table><thead><tr><th>順位</th><th>ユニット</th><th style="text-align:right">得票</th></tr></thead><tbody>
-        ${r.rows.map((row,i)=>`<tr><td class="rank">${i+1}</td><td>${esc(row.name)}</td>
-          <td class="votes" style="text-align:right">${row.votes}</td></tr>`).join("")}
+        ${r.rows.map((row,i,arr)=>{
+          const rank=(i===0||row.votes!==arr[i-1].votes)?i+1:arr.__lastRank;
+          arr.__lastRank=rank;
+          return `<tr><td class="rank">${rank}</td><td>${esc(row.name)}</td>
+          <td class="votes" style="text-align:right">${row.votes}</td></tr>`;
+        }).join("")}
         </tbody></table>`;
     }
     await refresh();
