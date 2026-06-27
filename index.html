@@ -191,8 +191,15 @@ async function adminGate(){
       <input id="newDate" type="date">
       <label>お客さんの人数</label>
       <input id="newCount" type="number" min="1" value="30">
-      <label>一人あたりの投票数（異なる組を何組選べるか）</label>
-      <input id="newVpp" type="number" min="1" value="1">
+      <label>投票ルール</label>
+      <div class="row">
+        <select id="newVoteMode" style="width:auto;flex:0 0 auto">
+          <option value="max">最大</option>
+          <option value="exact">ちょうど</option>
+        </select>
+        <input id="newVpp" type="number" min="1" value="1" style="width:80px;flex:0 0 auto">
+        <span class="muted">組選ぶ</span>
+      </div>
       <label>管理者パスワード（自分で決めてください）</label>
       <input id="newAdminPw" placeholder="このライブを管理するためのパスワード">
       <p class="muted">⚠️ 管理者パスワードは作成後に確認できません。<strong>必ず控えてください。</strong></p>
@@ -210,7 +217,7 @@ async function adminGate(){
         <div><strong>${esc(l.name)}</strong>
           ${l.is_hidden?'<span class="pill hidden">非表示</span>':''}
           ${l.is_closed?'<span class="pill closed">締切中</span>':'<span class="pill open">受付中</span>'}
-          <br><span class="muted">${esc(l.date||"日付未設定")}・お客さん ${l.audience_count}人・1人${l.votes_per_person}票</span></div>
+          <br><span class="muted">${esc(l.date||"日付未設定")}・お客さん ${l.audience_count}人・${l.vote_mode==="exact"?"ちょうど":"最大"}${l.votes_per_person}組</span></div>
         <button class="primary sm" onclick="openLive('${l.id}')">管理する</button>
       </div></div>`).join("");
   }
@@ -220,6 +227,7 @@ async function adminGate(){
     const date=$("#newDate").value||null;
     const count=parseInt($("#newCount").value,10);
     const vpp=Math.max(parseInt($("#newVpp").value,10)||1,1);
+    const voteMode=$("#newVoteMode").value;
     const adminPw=$("#newAdminPw").value.trim();
     if(!name){toast("ライブ名を入力してください");return;}
     if(!count||count<1){toast("人数を正しく入力してください");return;}
@@ -228,7 +236,7 @@ async function adminGate(){
     const set=new Set(); const pws=[];
     while(pws.length<count){const p=genPw(4);if(!set.has(p)){set.add(p);pws.push(p);}}
     const newId=await rpc("create_live",
-      {p_name:name,p_date:date,p_count:count,p_admin_pw:adminPw,p_aud_pws:pws,p_votes_per_person:vpp});
+      {p_name:name,p_date:date,p_count:count,p_admin_pw:adminPw,p_aud_pws:pws,p_votes_per_person:vpp,p_vote_mode:voteMode});
     await modal(`<span class="eyebrow">作成完了</span>
       <h3>${esc(name)}</h3>
       <p class="muted">設定した管理者パスワードでこのライブを管理できます。<br><strong>必ず控えてください。</strong></p>
@@ -432,17 +440,26 @@ async function adminLive(id){
       <div class="card">
         <label>ライブ名</label><input id="iName" value="${esc(live.name)}">
         <label>開催日</label><input id="iDate" type="date" value="${esc(live.date||"")}">
-        <label>一人あたりの投票数</label><input id="iVpp" type="number" min="1" value="${live.votes_per_person}">
+        <label>投票ルール</label>
+        <div class="row">
+          <select id="iVoteMode" style="width:auto;flex:0 0 auto">
+            <option value="max" ${(live.vote_mode||"max")==="max"?"selected":""}>最大</option>
+            <option value="exact" ${live.vote_mode==="exact"?"selected":""}>ちょうど</option>
+          </select>
+          <input id="iVpp" type="number" min="1" value="${live.votes_per_person}" style="width:80px;flex:0 0 auto">
+          <span class="muted">組選ぶ</span>
+        </div>
         <p class="muted">※ 管理者パスワード・お客さん人数はここでは変更できません。</p>
         <button class="primary" id="iSave">保存</button>
       </div>`;
     $("#iSave").onclick=async()=>{
       const vpp=Math.max(parseInt($("#iVpp").value,10)||1,1);
+      const voteMode=$("#iVoteMode").value;
       const res=await rpc("update_live_info",
         {p_live:id,p_admin_pw:adminPw,p_name:$("#iName").value.trim(),
-         p_date:$("#iDate").value||null,p_votes_per_person:vpp});
+         p_date:$("#iDate").value||null,p_votes_per_person:vpp,p_vote_mode:voteMode});
       if(res==="ok"){live.name=$("#iName").value.trim();live.date=$("#iDate").value;
-        live.votes_per_person=vpp;toast("保存しました");}
+        live.votes_per_person=vpp;live.vote_mode=voteMode;toast("保存しました");}
       else toast("保存に失敗しました");
     };
   }
@@ -468,21 +485,24 @@ async function votePage(id){
 
   const units=r.units||[];
   const vpp=r.votes_per_person||1;
+  const vmode=r.vote_mode||"max";
+  const isExact=vmode==="exact";
+  const ruleText=isExact?`ちょうど${vpp}組`:`最大${vpp}組`;
   view.innerHTML=`
     <span class="eyebrow">VOTE</span>
     <h1>${esc(r.name)}</h1>
     <div class="card">
       <label>あなたのパスワード</label>
       <input id="apw" placeholder="配られた4文字を入力" autocomplete="off">
-      <p class="muted">パスワードを入れてから、良かったユニットを<strong>最大${vpp}組</strong>選んでください。</p>
+      <p class="muted">パスワードを入れてから、良かったユニットを<strong>${ruleText}</strong>選んでください。</p>
     </div>
     ${units.length===0?"<p class='muted'>準備中です。しばらくお待ちください。</p>":`
-    <p class="muted">選択中：<span class="counter" id="cnt">0</span> / ${vpp}組</p>
+    <p class="muted">選択中：<span class="counter" id="cnt">0</span> / ${vpp}組${isExact?" （ちょうど"+vpp+"組選んでください）":""}</p>
     <div id="opts">
       ${units.map(u=>`<label class="voteopt" data-id="${u.id}">
         <input type="checkbox" value="${u.id}"><span>${esc(u.name)}</span></label>`).join("")}
     </div>
-    <button class="primary" id="submit" style="width:100%;margin-top:14px">投票する</button>`}`;
+    <button class="primary" id="submit" style="width:100%;margin-top:14px" ${isExact?"disabled":""}>投票する</button>`}`;
 
   const boxes=[...view.querySelectorAll(".voteopt input")];
   function selected(){return boxes.filter(b=>b.checked).map(b=>b.value);}
@@ -495,6 +515,8 @@ async function votePage(id){
       const disable = !b.checked && n>=vpp;
       b.disabled=disable; opt.classList.toggle("disabled",disable);
     });
+    const sub=$("#submit");
+    if(sub) sub.disabled = isExact ? n!==vpp : false;
   }
   boxes.forEach(b=>b.onchange=repaint);
 
@@ -504,6 +526,7 @@ async function votePage(id){
     const picks=selected();
     if(!pw){toast("パスワードを入力してください");return;}
     if(picks.length===0){toast("ユニットを選んでください");return;}
+    if(isExact&&picks.length!==vpp){toast(`ちょうど${vpp}組選んでください`);return;}
     let res=await rpc("cast_vote",{p_live:id,p_pw:pw,p_units:picks,p_overwrite:false});
     if(res==="bad_pw"){
       await modal(`<h3 class="err">パスワードが違います</h3>
@@ -514,7 +537,7 @@ async function votePage(id){
       <button class="primary" onclick="closeModal()">閉じる</button>`);return;}
     if(res==="closed"){await modal(`<div class="notice closed">投票は締め切りました</div>
       <button class="primary" onclick="closeModal()">閉じる</button>`);return;}
-    if(res==="count_over"){toast(`最大${vpp}組まで選べます`);return;}
+    if(res==="count_over"){toast(isExact?`ちょうど${vpp}組選んでください`:`最大${vpp}組まで選べます`);return;}
     if(res==="exists"){
       const ok=await modal(`<h3>投票を修正しますか？</h3>
         <p class="muted">このパスワードはすでに投票済みです。<br>新しい選択で上書きできます。</p>
