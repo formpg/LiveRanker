@@ -195,7 +195,7 @@ async function home(){
     list.innerHTML=visibleLives.map(l=>`
       <div class="card"><div class="topbar">
         <div><strong>${esc(l.name)}</strong>
-          ${l.is_closed?'<span class="pill closed">締切中</span>':'<span class="pill open">受付中</span>'}
+          ${l.is_closed?'<span class="pill closed">締切</span>':'<span class="pill open">受付中</span>'}
           <br><span class="muted">${esc(l.date||"日付未設定")}・お客さん ${l.audience_count}人・${l.vote_mode==="exact"?"ちょうど":"最大"}${l.votes_per_person}組</span></div>
         <button class="primary sm" onclick="openLive('${l.id}')">管理する</button>
       </div></div>`).join("");
@@ -293,7 +293,7 @@ async function adminLive(id){
   view.innerHTML=`
     <span class="eyebrow">ADMIN · ${esc(live.date||"")}</span>
     <h1>${esc(live.name)}
-      ${live.is_closed?'<span class="pill closed">締切中</span>':'<span class="pill open">受付中</span>'}</h1>
+      ${live.is_closed?'<span class="pill closed">締切</span>':'<span class="pill open">受付中</span>'}</h1>
     <div class="tabbar">
       <button data-t="rank" class="on">順位表</button>
       <button data-t="qr">投票QR</button>
