@@ -378,16 +378,34 @@ async function adminLive(id){
   async function tabKouban(){
     const r=await rpc("get_live_public",{p_live:id});
     const units=r.units||[];
+    const hasUnits=units.length>0;
     tab.innerHTML=`<h2>香盤・ユニット</h2>
-      <p class="muted">香盤を1行ずつ貼り付けてください。各行がユニットとして登録され、投票画面に反映されます。</p>
-      <textarea id="kb" placeholder="1行につき1組ずつ入力"></textarea>
-      <div class="row"><button class="primary" id="kbReg">この内容で登録</button>
-        <span class="muted">※ 既存のユニットは置き換わります</span></div>
-      <h3>現在のユニット（${units.length}組）</h3><div id="ulist"></div>`;
+      <div id="kbEditArea" class="${hasUnits?'hide':''}">
+        <p class="muted">香盤を1行ずつ貼り付けてください。各行がユニットとして登録され、投票画面に反映されます。</p>
+        <textarea id="kb" placeholder="1行につき1組ずつ入力"></textarea>
+        <div class="row"><button class="primary" id="kbReg">この内容で登録</button></div>
+      </div>
+      <div class="row" style="align-items:center;margin-top:14px">
+        <h3 style="margin:0">現在のユニット（${units.length}組）</h3>
+        ${hasUnits?'<button class="ghost sm" id="kbEditBtn">&#9998; 編集</button>':''}
+      </div>
+      <div id="ulist"></div>`;
     $("#kb").value=units.map(u=>u.name).join("\n");
     $("#ulist").innerHTML=units.length?
       `<table><tbody>${units.map((u,i)=>`<tr><td class="muted">${i+1}</td><td>${esc(u.name)}</td></tr>`).join("")}</tbody></table>`
       :"<p class='muted'>まだ登録がありません。</p>";
+    if(hasUnits&&$("#kbEditBtn")){
+      $("#kbEditBtn").onclick=async()=>{
+        const ok=await modal(`<h3>香盤を編集しますか？</h3>
+          <p class="muted">同じ名前のユニットの得票数は引き継がれます。</p>
+          <div class="row" style="justify-content:center;margin-top:12px">
+            <button class="ghost" onclick="closeModal(false)">やめる</button>
+            <button class="primary" onclick="closeModal(true)">編集する</button></div>`);
+        if(!ok)return;
+        $("#kbEditArea").classList.remove("hide");
+        $("#kbEditBtn").classList.add("hide");
+      };
+    }
     $("#kbReg").onclick=async()=>{
       const names=$("#kb").value.split("\n").map(s=>s.trim()).filter(Boolean);
       if(names.length===0){toast("1行以上入力してください");return;}
