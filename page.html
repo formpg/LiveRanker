@@ -432,7 +432,14 @@ async function adminLive(id){
             <button class="danger sm" id="edel_${i}">削除</button>
           </div>`).join("")}
         </div>
-        <button class="ghost" id="addUnit" style="width:100%;margin:8px 0">+ ユニットを追加</button>
+        <div class="row" style="margin:8px 0;gap:6px">
+          <button class="ghost grow" id="addUnit">+ 1組追加</button>
+          <button class="ghost grow" id="bulkAddBtn">+ 一括追加</button>
+        </div>
+        <div id="bulkArea" class="hide" style="margin-bottom:10px">
+          <textarea id="bulkTa" placeholder="追加するユニット名を1行ずつ入力" style="min-height:80px"></textarea>
+          <button class="primary sm" id="bulkOk">追加する</button>
+        </div>
         <div class="row" style="margin-top:12px">
           <button class="primary" id="saveUnits">保存</button>
           <button class="ghost" id="cancelEdit">キャンセル</button>
@@ -445,6 +452,17 @@ async function adminLive(id){
         editList.push({id:null,name:""});
         renderEditUI(editList);
         $(`#eu_${editList.length-1}`).focus();
+      };
+      $("#bulkAddBtn").onclick=()=>{
+        $("#bulkArea").classList.toggle("hide");
+        if(!$("#bulkArea").classList.contains("hide")) $("#bulkTa").focus();
+      };
+      $("#bulkOk").onclick=()=>{
+        const names=$("#bulkTa").value.split("\n").map(s=>s.trim()).filter(Boolean);
+        if(!names.length){toast("1行以上入力してください");return;}
+        names.forEach(n=>editList.push({id:null,name:n}));
+        renderEditUI(editList);
+        toast(`${names.length}組を追加しました`);
       };
       $("#saveUnits").onclick=async()=>{
         const valid=editList.filter(u=>u.name.trim());
