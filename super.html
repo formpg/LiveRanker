@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ライブランカー｜裏画面</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fbf7ef; --line:#e3dccb;
+    --accent:#e8421b; --accent-dk:#b32f0f; --ok:#2f7d4f; --muted:#8a8270;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;line-height:1.6}
+  .wrap{max-width:680px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:1.5rem;letter-spacing:.04em;margin:.2em 0}
+  .eyebrow{font-size:.72rem;letter-spacing:.25em;color:var(--accent);font-weight:700}
+  button{font:inherit;cursor:pointer;border:none;border-radius:8px;padding:12px 18px;
+    background:var(--ink);color:#fff;font-weight:700;letter-spacing:.03em;transition:.15s}
+  button:hover{transform:translateY(-1px)}
+  button.primary{background:var(--accent)}
+  button.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+  button.danger{background:#fff;color:var(--accent-dk);border:1.5px solid var(--accent-dk)}
+  button.sm{padding:7px 12px;font-size:.85rem}
+  input{font:inherit;width:100%;padding:11px 12px;border:1.5px solid var(--line);
+    border-radius:8px;background:#fff;margin:4px 0}
+  label{font-size:.85rem;font-weight:700;color:var(--muted);display:block;margin-top:12px}
+  .card{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:18px;margin:14px 0;
+    box-shadow:0 2px 0 var(--line)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .grow{flex:1 1 auto}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+  .pill{display:inline-block;border-radius:20px;padding:3px 11px;font-size:.78rem;font-weight:700}
+  .pill.hidden{background:var(--muted);color:#fff}
+  .pill.shown{background:var(--ok);color:#fff}
+  .pill.closed{background:var(--accent);color:#fff}
+  .pw{font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.06em;
+    background:#f3eee1;padding:2px 8px;border-radius:5px;word-break:break-all}
+  .muted{color:var(--muted);font-size:.88rem}
+  .err{color:var(--accent-dk);font-weight:700}
+  .logo{font-weight:800}
+  .logo .dot{color:var(--accent)}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:12px 20px;border-radius:10px;font-weight:700;
+    box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:50;opacity:0;transition:.25s;pointer-events:none}
+  .toast.show{opacity:1}
+  .modal-bg{position:fixed;inset:0;background:rgba(20,20,20,.55);display:flex;
+    align-items:center;justify-content:center;z-index:60;padding:18px}
+  .modal{background:#fff;border-radius:16px;padding:24px;max-width:380px;width:100%;text-align:center}
+  details summary{cursor:pointer;font-weight:700;color:var(--muted);font-size:.85rem;margin-top:10px}
+  .pwlist{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="logo">ライブ<span class="dot">●</span>ランカー <span class="muted">裏画面</span></div>
+    <a href="./index.html" class="muted" style="text-decoration:none">← 通常画面</a>
+  </div>
+  <div id="view"></div>
+</div>
+<div id="toast" class="toast"></div>
+<div id="modalRoot"></div>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+/* ===================================================================
+   ① index.html と同じ Supabase の値をここにも貼ってください
+   =================================================================== */
+const SUPABASE_URL      = "PASTE_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "PASTE_SUPABASE_ANON_KEY";
+/* superadminパスワードは schema.sql の _super_ok 関数側で設定します */
+/* =================================================================== */
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = s=>document.querySelector(s);
+const view=$("#view");
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200);}
+async function rpc(fn,args){const {data,error}=await sb.rpc(fn,args);if(error)throw error;return data;}
+function modal(html){return new Promise(res=>{const r=$("#modalRoot");
+  r.innerHTML=`<div class="modal-bg"><div class="modal">${html}</div></div>`;r._resolve=res;});}
+function closeModal(v){const r=$("#modalRoot");const f=r._resolve;r.innerHTML="";if(f)f(v);}
+window.closeModal=closeModal;
+
+function superPw(){return sessionStorage.getItem("super");}
+
+async function gate(){
+  if(!superPw()){
+    view.innerHTML=`<span class="eyebrow">SUPERADMIN</span><h1>裏画面</h1>
+      <div class="card"><label>superadminパスワード</label>
+      <input id="spw" type="password" autofocus>
+      <button class="primary" id="sbtn">入る</button></div>`;
+    $("#sbtn").onclick=async()=>{
+      const pw=$("#spw").value;
+      try{
+        const r=await rpc("super_list",{p_super:pw});
+        if(r&&!r.error){sessionStorage.setItem("super",pw);render();}
+        else toast("パスワードが違います");
+      }catch(e){toast("エラー: "+(e.message||e));}
+    };
+    return false;
+  }
+  return true;
+}
+
+async function render(){
+  if(!(await gate()))return;
+  view.innerHTML=`<span class="eyebrow">SUPERADMIN</span><h1>裏画面</h1>
+    <p class="muted">全ライブのパスワード閲覧・編集、表示/非表示の切替、削除ができます。ライブ作成は通常の管理者画面から。</p>
+    <div id="sl"><p class="muted">読み込み中…</p></div>`;
+  let lives;
+  try{ lives=await rpc("super_list",{p_super:superPw()}); }
+  catch(e){ view.innerHTML=`<p class='err'>エラー: ${esc(e.message||e)}</p>`; return; }
+  if(lives.error){sessionStorage.removeItem("super");return render();}
+  const sl=$("#sl");
+  if(!lives.length){sl.innerHTML="<p class='muted'>ライブがありません。</p>";return;}
+  sl.innerHTML=lives.map(l=>`
+    <div class="card">
+      <div class="topbar">
+        <strong>${esc(l.name)}</strong>
+        <span>${l.is_hidden?'<span class="pill hidden">非表示</span>':'<span class="pill shown">表示中</span>'}
+          ${l.is_closed?'<span class="pill closed">締切中</span>':''}</span>
+      </div>
+      <span class="muted">${esc(l.date||"")}・${l.audience_count}人・1人${l.votes_per_person}票</span>
+
+      <label>管理者パスワード</label>
+      <div class="row">
+        <input class="grow" id="ap_${l.id}" value="${esc(l.admin_pw)}">
+        <button class="primary sm" onclick="saveAdminPw('${l.id}')">保存</button>
+      </div>
+
+      <details><summary>お客さんPW（${(l.audience_pws||[]).length}個）を表示</summary>
+        <div class="pwlist">${(l.audience_pws||[]).map(p=>`<span class="pw">${esc(p)}</span>`).join("")}</div>
+      </details>
+
+      <div class="row" style="margin-top:14px">
+        <button class="ghost sm grow" onclick="toggleHidden('${l.id}',${l.is_hidden})">
+          ${l.is_hidden?'表示にする':'非表示にする'}</button>
+        <button class="danger sm" onclick="delLive('${l.id}','${esc(l.name)}')">削除</button>
+      </div>
+    </div>`).join("");
+}
+
+window.saveAdminPw=async function(id){
+  const v=$("#ap_"+id).value.trim();
+  if(!v){toast("空にはできません");return;}
+  const res=await rpc("super_set_admin_pw",{p_super:superPw(),p_live:id,p_new:v});
+  toast(res==="ok"?"更新しました":"失敗しました");
+};
+window.toggleHidden=async function(id,cur){
+  const res=await rpc("super_set_hidden",{p_super:superPw(),p_live:id,p_hidden:!cur});
+  if(res==="ok"){toast(!cur?"非表示にしました":"表示にしました");render();}
+  else toast("失敗しました");
+};
+window.delLive=async function(id,name){
+  const ok=await modal(`<h3 class="err">削除しますか？</h3>
+    <p class="muted">「${name}」とすべての投票データが消えます。元に戻せません。</p>
+    <div class="row" style="justify-content:center;margin-top:12px">
+      <button class="ghost" onclick="closeModal(false)">やめる</button>
+      <button class="danger" onclick="closeModal(true)">削除する</button></div>`);
+  if(!ok)return;
+  const res=await rpc("super_delete_live",{p_super:superPw(),p_live:id});
+  toast(res==="ok"?"削除しました":"失敗しました");
+  render();
+};
+
+render();
+</script>
+</body>
+</html>
