@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>お笑いライブ 投票システム</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fbf7ef; --line:#e3dccb;
+    --accent:#e8421b; --accent-dk:#b32f0f; --gold:#c79a3a;
+    --ok:#2f7d4f; --muted:#8a8270;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+    line-height:1.6;-webkit-text-size-adjust:100%}
+  .wrap{max-width:680px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:1.5rem;letter-spacing:.04em;margin:.2em 0}
+  h2{font-size:1.15rem;border-bottom:2px solid var(--ink);padding-bottom:6px;margin-top:32px}
+  h3{font-size:1rem;margin:18px 0 8px}
+  .eyebrow{font-size:.72rem;letter-spacing:.25em;color:var(--accent);font-weight:700}
+  button{font:inherit;cursor:pointer;border:none;border-radius:8px;padding:12px 18px;
+    background:var(--ink);color:#fff;font-weight:700;letter-spacing:.03em;transition:.15s}
+  button:hover{transform:translateY(-1px)}
+  button:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  button.primary{background:var(--accent)}
+  button.primary:hover{background:var(--accent-dk)}
+  button.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+  button.danger{background:#fff;color:var(--accent-dk);border:1.5px solid var(--accent-dk)}
+  button.sm{padding:7px 12px;font-size:.85rem}
+  input,select,textarea{font:inherit;width:100%;padding:11px 12px;border:1.5px solid var(--line);
+    border-radius:8px;background:#fff;margin:4px 0}
+  textarea{min-height:120px;resize:vertical;font-family:ui-monospace,monospace}
+  label{font-size:.85rem;font-weight:700;color:var(--muted);display:block;margin-top:12px}
+  .card{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:18px;margin:14px 0;
+    box-shadow:0 2px 0 var(--line)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .row > *{flex:0 0 auto}
+  .grow{flex:1 1 auto}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line)}
+  th{font-size:.8rem;color:var(--muted);letter-spacing:.05em}
+  .rank{font-weight:800;font-size:1.1rem;color:var(--accent);width:2.2em}
+  .votes{font-variant-numeric:tabular-nums;font-weight:700}
+  .pill{display:inline-block;background:var(--ink);color:#fff;border-radius:20px;
+    padding:3px 11px;font-size:.78rem;font-weight:700;letter-spacing:.04em}
+  .pw{font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.08em;
+    background:#f3eee1;padding:2px 8px;border-radius:5px}
+  .muted{color:var(--muted);font-size:.88rem}
+  .err{color:var(--accent-dk);font-weight:700}
+  .hide{display:none!important}
+  .tabbar{display:flex;gap:6px;border-bottom:2px solid var(--ink);margin:18px 0;flex-wrap:wrap}
+  .tabbar button{background:none;color:var(--muted);border-radius:8px 8px 0 0;padding:9px 14px}
+  .tabbar button.on{background:var(--ink);color:#fff}
+  .qrbox{text-align:center;padding:14px;background:#fff;border:1.5px dashed var(--line);border-radius:12px}
+  .qrbox canvas,.qrbox img{max-width:240px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:12px 20px;border-radius:10px;font-weight:700;
+    box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:50;opacity:0;transition:.25s;pointer-events:none}
+  .toast.show{opacity:1}
+  .modal-bg{position:fixed;inset:0;background:rgba(20,20,20,.55);display:flex;
+    align-items:center;justify-content:center;z-index:60;padding:18px}
+  .modal{background:#fff;border-radius:16px;padding:24px;max-width:380px;width:100%;text-align:center}
+  .big{font-size:2.4rem;font-weight:800;line-height:1.1;margin:10px 0}
+  .voteopt{display:flex;align-items:center;gap:12px;padding:14px;border:1.5px solid var(--line);
+    border-radius:12px;margin:8px 0;cursor:pointer;background:#fff}
+  .voteopt.sel{border-color:var(--accent);background:#fdeee9;box-shadow:0 0 0 2px var(--accent) inset}
+  .voteopt input{width:auto;margin:0}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+  .logo{font-weight:800;letter-spacing:.02em}
+  .logo .dot{color:var(--accent)}
+  code.path{font-size:.8rem;background:#f3eee1;padding:1px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="logo">投票<span class="dot">●</span>ライブ</div>
+    <div id="navArea" class="row"></div>
+  </div>
+
+  <div id="setupWarn" class="card hide" style="border-color:var(--accent)">
+    <span class="eyebrow">SETUP REQUIRED</span>
+    <h3>Supabaseの設定がまだです</h3>
+    <p class="muted">このHTML下部の <code class="path">SUPABASE_URL</code> と <code class="path">SUPABASE_ANON_KEY</code> に、ご自身のプロジェクトの値を貼り付けてください。手順はREADMEを参照。</p>
+  </div>
+
+  <div id="view"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+<div id="modalRoot"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+/* ===================================================================
+   ① ここをあなたのSupabaseの値に貼り替えてください
+   （Supabaseダッシュボード > Project Settings > API）
+   =================================================================== */
+const SUPABASE_URL      = "PASTE_SUPABASE_URL";       // 例: https://xxxx.supabase.co
+const SUPABASE_ANON_KEY = "PASTE_SUPABASE_ANON_KEY";  // anon public key
+/* ===================================================================
+   ② superadminパスワードは schema.sql の _super_ok 関数側で設定します
+      （このHTMLには書きません = 漏れない）
+   =================================================================== */
+
+const isConfigured = !SUPABASE_URL.startsWith("PASTE");
+let sb = null;
+if (isConfigured) {
+  sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} else {
+  document.getElementById("setupWarn").classList.remove("hide");
+}
+
+/* ---------- 小道具 ---------- */
+const $ = s => document.querySelector(s);
+const view = $("#view");
+const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200);}
+function genPw(n=4){const c="ABCDEFGHJKMNPQRSTUVWXYZ23456789";let s="";for(let i=0;i<n;i++)s+=c[Math.floor(Math.random()*c.length)];return s;}
+function nav(hash){location.hash=hash;}
+
+/* RPC呼び出しの薄いラッパ */
+async function rpc(fn,args){
+  const {data,error}=await sb.rpc(fn,args);
+  if(error)throw error;
+  return data;
+}
+
+/* モーダル */
+function modal(html){
+  return new Promise(resolve=>{
+    const root=$("#modalRoot");
+    root.innerHTML=`<div class="modal-bg"><div class="modal">${html}</div></div>`;
+    root._resolve=resolve;
+  });
+}
+function closeModal(val){const root=$("#modalRoot");const r=root._resolve;root.innerHTML="";if(r)r(val);}
+window.closeModal=closeModal;
+
+/* ================================================================
+   ルーター
+   ================================================================ */
+async function router(){
+  if(!isConfigured)return;
+  const h=location.hash.replace(/^#/,"")||"/";
+  const seg=h.split("/").filter(Boolean);
+  renderNav(seg[0]);
+  view.innerHTML="<p class='muted'>読み込み中…</p>";
+  try{
+    if(seg.length===0) return home();
+    if(seg[0]==="admin" && !seg[1]) return adminGate();
+    if(seg[0]==="admin" && seg[1]) return adminLive(seg[1]);
+    if(seg[0]==="super") return superGate();
+    if(seg[0]==="vote" && seg[1]) return votePage(seg[1]);
+    view.innerHTML="<p class='err'>ページが見つかりません</p>";
+  }catch(e){view.innerHTML=`<p class='err'>エラー: ${esc(e.message||e)}</p>`;console.error(e);}
+}
+window.addEventListener("hashchange",router);
+router();
+
+function renderNav(top){
+  const n=$("#navArea");
+  if(top==="vote"){n.innerHTML="";return;}
+  n.innerHTML=`<button class="ghost sm" onclick="location.hash='/admin'">管理者</button>`;
+}
+
+/* ================================================================ ホーム */
+function home(){
+  view.innerHTML=`
+    <span class="eyebrow">OWARAI LIVE VOTING</span>
+    <h1>お笑いライブ 投票システム</h1>
+    <p class="muted">ライブの順位投票を、QRコードでかんたんに。</p>
+    <div class="card">
+      <h3>運営の方</h3>
+      <p class="muted">ライブの作成・管理・順位の確認はこちら。</p>
+      <button class="primary" onclick="location.hash='/admin'">管理者画面へ</button>
+    </div>
+    <p class="muted" style="margin-top:30px">お客さまは、会場のQRコードから投票画面に入れます。</p>`;
+}
+
+/* ================================================================ 管理者ゲート */
+async function adminGate(){
+  const lives=await rpc("list_lives");
+  view.innerHTML=`
+    <span class="eyebrow">ADMIN</span>
+    <h1>管理者画面</h1>
+    <h2>新しいライブを作成</h2>
+    <div class="card">
+      <label>ライブ名</label>
+      <input id="newName" placeholder="例：第12回 ネタ祭り">
+      <label>開催日</label>
+      <input id="newDate" type="date">
+      <label>お客さんの人数</label>
+      <input id="newCount" type="number" min="1" value="30">
+      <p class="muted">作成すると、このライブ専用の管理者パスワードと、人数分のお客さん用パスワードが自動発行されます。</p>
+      <button class="primary" id="createBtn">ライブを作成</button>
+    </div>
+    <h2>既存のライブ</h2>
+    <div id="liveList"></div>
+    <p class="muted" style="margin-top:40px">
+      <a href="#/super" style="color:var(--muted)">superadmin（裏画面）</a></p>`;
+
+  const list=$("#liveList");
+  if(!lives||lives.length===0){list.innerHTML="<p class='muted'>まだライブがありません。</p>";}
+  else{
+    list.innerHTML=lives.map(l=>`
+      <div class="card"><div class="topbar">
+        <div><strong>${esc(l.name)}</strong><br>
+          <span class="muted">${esc(l.date||"日付未設定")}・お客さん ${l.audience_count}人</span></div>
+        <button class="primary sm" onclick="openLive('${l.id}')">管理する</button>
+      </div></div>`).join("");
+  }
+
+  $("#createBtn").onclick=async()=>{
+    const name=$("#newName").value.trim();
+    const date=$("#newDate").value||null;
+    const count=parseInt($("#newCount").value,10);
+    if(!name){toast("ライブ名を入力してください");return;}
+    if(!count||count<1){toast("人数を正しく入力してください");return;}
+    $("#createBtn").disabled=true;
+    const adminPw=genPw(5);
+    const set=new Set(); const pws=[];
+    while(pws.length<count){const p=genPw(4);if(!set.has(p)){set.add(p);pws.push(p);}}
+    const newId=await rpc("create_live",
+      {p_name:name,p_date:date,p_count:count,p_admin_pw:adminPw,p_aud_pws:pws});
+    await modal(`<span class="eyebrow">作成完了</span>
+      <h3>${esc(name)}</h3>
+      <p>このライブの管理者パスワード</p>
+      <div class="big pw">${adminPw}</div>
+      <p class="muted">控えておいてください（superadmin画面でも確認できます）</p>
+      <button class="primary" onclick="closeModal()">OK</button>`);
+    sessionStorage.setItem("apw:"+newId,adminPw);
+    nav("/admin/"+newId);
+  };
+}
+
+// ライブ選択 → 管理者PW認証
+window.openLive=async function(id){
+  const pw=await modal(`<span class="eyebrow">管理者ログイン</span>
+    <h3>管理者パスワード</h3>
+    <input id="mpw" placeholder="パスワード" autofocus>
+    <div class="row" style="justify-content:center;margin-top:12px">
+      <button class="ghost" onclick="closeModal(null)">やめる</button>
+      <button class="primary" onclick="closeModal(document.getElementById('mpw').value.trim())">入る</button>
+    </div>`);
+  if(pw===null)return;
+  const res=await rpc("admin_get_live",{p_live:id,p_admin_pw:pw});
+  if(!res||res.error){toast("パスワードが違います");return;}
+  sessionStorage.setItem("apw:"+id,pw);
+  nav("/admin/"+id);
+};
+
+/* ================================================================ 管理者：ライブ詳細 */
+async function adminLive(id){
+  let adminPw=sessionStorage.getItem("apw:"+id);
+  let live=null;
+  if(adminPw){
+    const r=await rpc("admin_get_live",{p_live:id,p_admin_pw:adminPw});
+    if(r&&!r.error)live=r;
+  }
+  if(!live){ // 直接URLで来た等 → 認証フォーム
+    view.innerHTML=`<div class="card"><h3>管理者ログイン</h3>
+      <label>管理者パスワード</label><input id="gpw" autofocus>
+      <button class="primary" id="gbtn">入る</button></div>`;
+    $("#gbtn").onclick=async()=>{
+      const pw=$("#gpw").value.trim();
+      const r=await rpc("admin_get_live",{p_live:id,p_admin_pw:pw});
+      if(r&&!r.error){sessionStorage.setItem("apw:"+id,pw);adminLive(id);}
+      else toast("パスワードが違います");
+    };
+    return;
+  }
+
+  const voteUrl=location.origin+location.pathname+"#/vote/"+id;
+  view.innerHTML=`
+    <span class="eyebrow">ADMIN · ${esc(live.date||"")}</span>
+    <h1>${esc(live.name)}</h1>
+    <div class="tabbar">
+      <button data-t="rank" class="on">順位表</button>
+      <button data-t="qr">投票QR</button>
+      <button data-t="kouban">香盤・ユニット</button>
+      <button data-t="pw">お客さんPW</button>
+      <button data-t="info">ライブ情報</button>
+    </div>
+    <div id="tab"></div>`;
+  const tab=$("#tab");
+  let unsub=null;
+  view.querySelectorAll(".tabbar button").forEach(b=>{
+    b.onclick=()=>{
+      if(unsub){unsub();unsub=null;}
+      view.querySelectorAll(".tabbar button").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on");
+      ({rank:tabRank,qr:tabQr,kouban:tabKouban,pw:tabPw,info:tabInfo}[b.dataset.t])();
+    };
+  });
+
+  /* 順位表（Realtime） */
+  async function tabRank(){
+    tab.innerHTML=`<h2>順位表 <span class="muted">●LIVE</span></h2><div id="rankBox"><p class="muted">集計中…</p></div>`;
+    async function refresh(){
+      const r=await rpc("get_ranking",{p_live:id,p_admin_pw:adminPw});
+      const box=$("#rankBox"); if(!box)return;
+      if(r.error){box.innerHTML="<p class='err'>認証エラー</p>";return;}
+      if(!r.rows||r.rows.length===0){box.innerHTML="<p class='muted'>先に「香盤・ユニット」を登録してください。</p>";return;}
+      box.innerHTML=`<p class="muted">総投票数 <strong>${r.total}</strong> / お客さん ${live.audience_count}人</p>
+        <table><thead><tr><th>順位</th><th>ユニット</th><th style="text-align:right">得票</th></tr></thead><tbody>
+        ${r.rows.map((row,i)=>`<tr><td class="rank">${i+1}</td><td>${esc(row.name)}</td>
+          <td class="votes" style="text-align:right">${row.votes}</td></tr>`).join("")}
+        </tbody></table>`;
+    }
+    await refresh();
+    const ch=sb.channel("rk:"+id)
+      .on("postgres_changes",{event:"*",schema:"public",table:"votes",filter:"live_id=eq."+id},refresh)
+      .subscribe();
+    unsub=()=>sb.removeChannel(ch);
+  }
+
+  /* QR */
+  function tabQr(){
+    tab.innerHTML=`<h2>投票用QRコード</h2>
+      <p class="muted">会場に掲示してください。お客さんはこれを読み取って投票します。</p>
+      <div class="qrbox"><div id="qrc"></div>
+        <p class="muted" style="word-break:break-all">${esc(voteUrl)}</p></div>
+      <div class="row" style="margin-top:12px">
+        <button class="ghost" id="dlPng">画像で保存</button>
+        <button class="ghost" id="dlPdf">PDFで保存</button></div>`;
+    const holder=$("#qrc");
+    new QRCode(holder,{text:voteUrl,width:240,height:240,correctLevel:QRCode.CorrectLevel.M});
+    const getUrl=()=>{const img=holder.querySelector("img");const cv=holder.querySelector("canvas");
+      return img?img.src:cv.toDataURL("image/png");};
+    setTimeout(()=>{
+      $("#dlPng").onclick=()=>{const a=document.createElement("a");a.href=getUrl();a.download=`QR_${live.name}.png`;a.click();};
+      $("#dlPdf").onclick=()=>{const {jsPDF}=window.jspdf;const pdf=new jsPDF();
+        pdf.setFontSize(18);pdf.text("Vote here",105,30,{align:"center"});
+        pdf.addImage(getUrl(),"PNG",65,45,80,80);
+        pdf.setFontSize(9);pdf.text(voteUrl,105,135,{align:"center"});
+        pdf.save(`QR_${live.name}.pdf`);};
+    },300);
+  }
+
+  /* 香盤 → ユニット */
+  async function tabKouban(){
+    const r=await rpc("get_live_public",{p_live:id});
+    const units=r.units||[];
+    tab.innerHTML=`<h2>香盤・ユニット</h2>
+      <p class="muted">香盤を1行ずつ貼り付けてください。各行がユニットとして登録され、投票画面に反映されます。</p>
+      <textarea id="kb" placeholder="ナイスミドル&#10;赤色コブラ&#10;サンライズ・トリオ"></textarea>
+      <div class="row"><button class="primary" id="kbReg">この内容で登録</button>
+        <span class="muted">※ 既存のユニットは置き換わります</span></div>
+      <h3>現在のユニット（${units.length}組）</h3><div id="ulist"></div>`;
+    $("#kb").value=units.map(u=>u.name).join("\n");
+    $("#ulist").innerHTML=units.length?
+      `<table><tbody>${units.map((u,i)=>`<tr><td class="muted">${i+1}</td><td>${esc(u.name)}</td></tr>`).join("")}</tbody></table>`
+      :"<p class='muted'>まだ登録がありません。</p>";
+    $("#kbReg").onclick=async()=>{
+      const names=$("#kb").value.split("\n").map(s=>s.trim()).filter(Boolean);
+      if(names.length===0){toast("1行以上入力してください");return;}
+      $("#kbReg").disabled=true;
+      const res=await rpc("set_units",{p_live:id,p_admin_pw:adminPw,p_names:names});
+      if(res==="ok"){toast(`${names.length}組を登録しました`);tabKouban();}
+      else toast("登録に失敗しました");
+    };
+  }
+
+  /* お客さんPW */
+  function tabPw(){
+    const pws=live.audience_pws||[];
+    tab.innerHTML=`<h2>お客さん用パスワード</h2>
+      <p class="muted">${live.audience_count}人分。1人に1つずつ配ってください。</p>
+      <div class="row" style="margin-bottom:10px">
+        <button class="ghost sm" id="copyAll">全部コピー</button>
+        <button class="ghost sm" id="pwPdf">PDFで保存</button></div>
+      <div class="card"><div class="row" style="gap:8px">
+        ${pws.map(p=>`<span class="pw">${p}</span>`).join(" ")}</div></div>`;
+    $("#copyAll").onclick=()=>{navigator.clipboard.writeText(pws.join("\n"));toast("コピーしました");};
+    $("#pwPdf").onclick=()=>{const {jsPDF}=window.jspdf;const pdf=new jsPDF();
+      pdf.setFontSize(14);pdf.text(`Audience PW - ${live.name}`,14,18);
+      pdf.setFontSize(12);let x=14,y=32;
+      pws.forEach((p,i)=>{pdf.text(p,x,y);x+=34;if((i+1)%5===0){x=14;y+=10;}if(y>280){pdf.addPage();y=20;}});
+      pdf.save(`passwords_${live.name}.pdf`);};
+  }
+
+  /* ライブ情報編集（PWは除く） */
+  function tabInfo(){
+    tab.innerHTML=`<h2>ライブ情報</h2>
+      <div class="card">
+        <label>ライブ名</label><input id="iName" value="${esc(live.name)}">
+        <label>開催日</label><input id="iDate" type="date" value="${esc(live.date||"")}">
+        <p class="muted">※ 管理者パスワード・お客さん人数はここでは変更できません（PWはsuperadmin画面で）。</p>
+        <button class="primary" id="iSave">保存</button>
+      </div>
+      <div class="card"><h3 class="muted">管理者パスワード</h3>
+        <div class="big pw">${esc(live.admin_pw)}</div></div>`;
+    $("#iSave").onclick=async()=>{
+      const res=await rpc("update_live_info",
+        {p_live:id,p_admin_pw:adminPw,p_name:$("#iName").value.trim(),p_date:$("#iDate").value||null});
+      if(res==="ok"){live.name=$("#iName").value.trim();live.date=$("#iDate").value;toast("保存しました");}
+      else toast("保存に失敗しました");
+    };
+  }
+
+  tabRank();
+}
+
+/* ================================================================ お客さん投票画面 */
+async function votePage(id){
+  const r=await rpc("get_live_public",{p_live:id});
+  if(!r||!r.id){view.innerHTML="<p class='err'>このライブは存在しません。</p>";return;}
+  const units=r.units||[];
+  view.innerHTML=`
+    <span class="eyebrow">VOTE</span>
+    <h1>${esc(r.name)}</h1>
+    <div class="card">
+      <label>あなたのパスワード</label>
+      <input id="apw" placeholder="配られた4文字を入力" autocomplete="off">
+      <p class="muted">パスワードを入れてから、いちばん良かったユニットを選んでください。</p>
+    </div>
+    ${units.length===0?"<p class='muted'>準備中です。しばらくお待ちください。</p>":`
+    <div id="opts">
+      ${units.map(u=>`<label class="voteopt"><input type="radio" name="u" value="${u.id}">
+        <span>${esc(u.name)}</span></label>`).join("")}
+    </div>
+    <button class="primary" id="submit" style="width:100%;margin-top:14px">投票する</button>`}`;
+
+  view.querySelectorAll(".voteopt").forEach(o=>{
+    o.querySelector("input").onchange=()=>{
+      view.querySelectorAll(".voteopt").forEach(x=>x.classList.remove("sel"));
+      o.classList.add("sel");};
+  });
+
+  const submit=$("#submit"); if(!submit)return;
+  submit.onclick=async()=>{
+    const pw=$("#apw").value.trim().toUpperCase();
+    const sel=view.querySelector("input[name=u]:checked");
+    if(!pw){toast("パスワードを入力してください");return;}
+    if(!sel){toast("ユニットを選んでください");return;}
+    let res=await rpc("cast_vote",{p_live:id,p_pw:pw,p_unit:sel.value,p_overwrite:false});
+    if(res==="bad_pw"){ // ⑥
+      await modal(`<h3 class="err">パスワードが違います</h3>
+        <p class="muted">配られたパスワードをもう一度ご確認ください。</p>
+        <button class="primary" onclick="closeModal()">閉じる</button>`);
+      return;
+    }
+    if(res==="exists"){ // ⑦
+      const ok=await modal(`<h3>投票を修正しますか？</h3>
+        <p class="muted">このパスワードはすでに投票済みです。<br>新しい選択で上書きできます。</p>
+        <div class="row" style="justify-content:center;margin-top:12px">
+          <button class="ghost" onclick="closeModal(false)">いいえ</button>
+          <button class="primary" onclick="closeModal(true)">はい（修正する）</button></div>`);
+      if(!ok)return;
+      res=await rpc("cast_vote",{p_live:id,p_pw:pw,p_unit:sel.value,p_overwrite:true});
+    }
+    if(res==="ok"||res==="updated"){
+      await modal(`<div class="big">✓</div><h3>投票ありがとうございました！</h3>
+        <p class="muted">選んだユニット：<strong>${esc(units.find(u=>u.id===sel.value).name)}</strong></p>
+        <button class="primary" onclick="closeModal()">閉じる</button>`);
+    }else{toast("送信に失敗しました");}
+  };
+}
+
+/* ================================================================ superadmin */
+async function superGate(){
+  const sp=sessionStorage.getItem("super");
+  if(!sp){
+    view.innerHTML=`<span class="eyebrow">SUPERADMIN</span><h1>裏画面</h1>
+      <div class="card"><label>superadminパスワード</label>
+      <input id="spw" type="password" autofocus>
+      <button class="primary" id="sbtn">入る</button></div>`;
+    $("#sbtn").onclick=async()=>{
+      const pw=$("#spw").value;
+      const r=await rpc("super_list",{p_super:pw});
+      if(r&&!r.error){sessionStorage.setItem("super",pw);superGate();}
+      else toast("パスワードが違います");
+    };
+    return;
+  }
+  const lives=await rpc("super_list",{p_super:sp});
+  if(lives.error){sessionStorage.removeItem("super");return superGate();}
+  view.innerHTML=`<span class="eyebrow">SUPERADMIN</span><h1>裏画面</h1>
+    <p class="muted">全ライブのパスワード閲覧・編集・削除。ライブ作成は管理者画面から。</p>
+    <div id="sl"></div>`;
+  $("#sl").innerHTML=(lives.length?lives:[]).map(l=>`
+    <div class="card">
+      <div class="topbar"><strong>${esc(l.name)}</strong>
+        <span class="muted">${esc(l.date||"")}・${l.audience_count}人</span></div>
+      <label>管理者パスワード</label>
+      <div class="row">
+        <input class="grow" id="ap_${l.id}" value="${esc(l.admin_pw)}">
+        <button class="primary sm" onclick="saveAdminPw('${l.id}')">保存</button></div>
+      <div class="row" style="margin-top:10px">
+        <span class="muted grow">お客さんPW ${(l.audience_pws||[]).length}個</span>
+        <button class="danger sm" onclick="delLive('${l.id}','${esc(l.name)}')">ライブを削除</button></div>
+    </div>`).join("")||"<p class='muted'>ライブがありません。</p>";
+}
+window.saveAdminPw=async function(id){
+  const v=$("#ap_"+id).value.trim();
+  if(!v){toast("空にはできません");return;}
+  const res=await rpc("super_set_admin_pw",{p_super:sessionStorage.getItem("super"),p_live:id,p_new:v});
+  toast(res==="ok"?"更新しました":"失敗しました");
+};
+window.delLive=async function(id,name){
+  const ok=await modal(`<h3 class="err">削除しますか？</h3>
+    <p class="muted">「${name}」とすべての投票データが消えます。元に戻せません。</p>
+    <div class="row" style="justify-content:center;margin-top:12px">
+      <button class="ghost" onclick="closeModal(false)">やめる</button>
+      <button class="danger" onclick="closeModal(true)">削除する</button></div>`);
+  if(!ok)return;
+  const res=await rpc("super_delete_live",{p_super:sessionStorage.getItem("super"),p_live:id});
+  toast(res==="ok"?"削除しました":"失敗しました");
+  superGate();
+};
+
+router();
+</script>
+</body>
+</html>
