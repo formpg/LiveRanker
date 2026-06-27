@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ライブランカー</title>
+<meta name="description" content="お笑いライブの順位投票を、QRコードでかんたんに。">
+<meta property="og:title" content="ライブランカー">
+<meta property="og:description" content="お笑いライブの順位投票を、QRコードでかんたんに。">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ja_JP">
 <style>
   :root{
     --ink:#1a1a1a; --paper:#fbf7ef; --line:#e3dccb;
@@ -443,6 +448,7 @@ async function adminLive(id){
       const bottomY=y+totalRows*cellH;
       pdf.setLineDashPattern([2,2],0);pdf.setDrawColor(180);
       pdf.line(pw,bottomY,210-pw,bottomY);
+      pdf.line(pw,y,pw,bottomY);
       pdf.line(210-pw,y,210-pw,bottomY);
       pdf.save(`passwords_${live.name}.pdf`);};
   }
