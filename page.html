@@ -185,6 +185,7 @@ async function home(){
     <span class="eyebrow">LIVE RANKER</span>
     <h1>トップ画面</h1>
     <p class="muted">お笑いライブの順位投票を、QRコードでかんたんに。</p>
+    <div style="margin-top:12px"><a href="./guide.html" style="color:var(--muted);font-size:.88rem">使い方ガイド &rarr;</a></div>
     <h2>ライブ一覧</h2>
     <div id="liveList"><p class="muted">読み込み中…</p></div>`;
   const lives=await rpc("list_lives");
@@ -549,6 +550,11 @@ async function adminLive(id){
         </div>
         <p class="muted">※ 管理者パスワードは変更できません。</p>
         <button class="primary" id="iSave">保存</button>
+      </div>
+      <div class="card" style="border-color:var(--accent-dk)">
+        <h3>ライブを非表示にする</h3>
+        <p class="muted">非表示にすると、トップ画面やお客さんの投票画面からアクセスできなくなります。</p>
+        <button class="danger" id="hideBtn">このライブを非表示にする</button>
       </div>`;
     $("#iSave").onclick=async()=>{
       const vpp=Math.max(parseInt($("#iVpp").value,10)||1,1);
@@ -575,6 +581,19 @@ async function adminLive(id){
             adminLive(id);}
           toast("保存しました");}
         else toast("保存に失敗しました");
+      }catch(e){toast("エラー: "+(e.message||e));console.error(e);}
+    };
+    $("#hideBtn").onclick=async()=>{
+      const ok=await modal(`<h3 class="err">本当に非表示にしますか？</h3>
+        <p class="muted">一度非表示にすると元に戻せません。<br>トップ画面・投票画面からアクセスできなくなります。</p>
+        <div class="row" style="justify-content:center;margin-top:12px">
+          <button class="ghost" onclick="closeModal(false)">やめる</button>
+          <button class="danger" onclick="closeModal(true)">非表示にする</button></div>`);
+      if(!ok)return;
+      try{
+        const res=await rpc("admin_hide_live",{p_live:id,p_admin_pw:adminPw});
+        if(res==="ok"){toast("非表示にしました");nav("/");}
+        else toast("操作に失敗しました");
       }catch(e){toast("エラー: "+(e.message||e));console.error(e);}
     };
   }
