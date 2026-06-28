@@ -708,7 +708,6 @@ async function votePage(id){
     const pw=$("#apw").value.trim().toUpperCase();
     const picks=selected();
     if(!pw){toast(pwRequired?"パスワードを入力してください":"投票用IDを入力してください");return;}
-    if(picks.length===0){toast("ユニットを選んでください");return;}
     if(isExact&&picks.length!==vpp){toast(`ちょうど${vpp}組選んでください`);return;}
     let res=await rpc("cast_vote",{p_live:id,p_pw:pw,p_units:picks,p_overwrite:false});
     if(res==="bad_pw"){
