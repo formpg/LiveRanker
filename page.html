@@ -26,10 +26,12 @@
   .eyebrow{font-size:.72rem;letter-spacing:.25em;color:var(--accent);font-weight:700}
   button{font:inherit;cursor:pointer;border:none;border-radius:8px;padding:12px 18px;
     background:var(--ink);color:#fff;font-weight:700;letter-spacing:.03em;transition:.15s}
-  button:hover{transform:translateY(-1px)}
+  @media(hover:hover){
+    button:hover{transform:translateY(-1px)}
+    button.primary:hover{background:var(--accent-dk)}
+  }
   button:disabled{opacity:.4;cursor:not-allowed;transform:none}
   button.primary{background:var(--accent)}
-  button.primary:hover{background:var(--accent-dk)}
   button.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
   button.danger{background:#fff;color:var(--accent-dk);border:1.5px solid var(--accent-dk)}
   button.sm{padding:7px 12px;font-size:.85rem}
