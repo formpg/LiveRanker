@@ -84,6 +84,16 @@
   .notice.hidden{background:#f1efe7;color:var(--muted);border:1.5px solid var(--line)}
   code.path{font-size:.8rem;background:#f3eee1;padding:1px 6px;border-radius:4px}
   .counter{font-weight:700;color:var(--accent)}
+  .success-wrap{text-align:center;padding:64px 20px 48px;animation:fade-up .35s ease both}
+  @keyframes fade-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .success-svg{display:block;margin:0 auto 28px}
+  .check-circle{stroke-dasharray:226;stroke-dashoffset:226;
+    animation:draw-arc .55s cubic-bezier(.4,0,.2,1) forwards .05s}
+  .check-mark{stroke-dasharray:60;stroke-dashoffset:60;
+    animation:draw-arc .36s cubic-bezier(.4,0,.2,1) forwards .52s}
+  @keyframes draw-arc{to{stroke-dashoffset:0}}
+  .success-ttl{font-size:1.6rem;font-weight:800;margin:0 0 6px;color:var(--ok);letter-spacing:.04em}
+  .success-sub{color:var(--muted);font-size:.92rem;margin:0 0 24px}
 </style>
 </head>
 <body>
@@ -225,12 +235,14 @@ async function adminGate(){
       <label>投票ルール</label>
       <div class="row">
         <select id="newVoteMode" style="width:auto;flex:0 0 auto">
+          <option value="" disabled selected>選択してください</option>
           <option value="max">最大</option>
           <option value="exact">ちょうど</option>
         </select>
-        <input id="newVpp" type="number" min="1" value="1" style="width:80px;flex:0 0 auto">
+        <input id="newVpp" type="number" min="1" placeholder="N" style="width:80px;flex:0 0 auto">
         <span class="muted">組選ぶ</span>
       </div>
+      <p id="ruleErr" class="err hide" style="font-size:.85rem;margin:4px 0 0">投票ルールを設定しないと作成できません</p>
       <label>管理者パスワード（自分で決めてください）</label>
       <input id="newAdminPw" placeholder="このライブを管理するためのパスワード">
       <p class="muted">⚠️ 管理者パスワードは作成後に確認できません。<strong>必ず控えてください。</strong></p>
@@ -246,11 +258,16 @@ async function adminGate(){
     const date=$("#newDate").value||null;
     const pwReq=$("#newPwReq").value==="pw";
     const count=pwReq?parseInt($("#newCount").value,10):0;
-    const vpp=Math.max(parseInt($("#newVpp").value,10)||1,1);
     const voteMode=$("#newVoteMode").value;
+    const vppRaw=$("#newVpp").value;
     const adminPw=$("#newAdminPw").value.trim();
     if(!name){toast("ライブ名を入力してください");return;}
     if(pwReq&&(!count||count<1)){toast("人数を正しく入力してください");return;}
+    if(!voteMode||!vppRaw){
+      $("#ruleErr").classList.remove("hide");
+      $("#newVoteMode").focus();return;}
+    $("#ruleErr").classList.add("hide");
+    const vpp=Math.max(parseInt(vppRaw,10)||1,1);
     if(!adminPw){toast("管理者パスワードを決めてください");return;}
     $("#createBtn").disabled=true;
     const set=new Set(); const pws=[];
@@ -740,9 +757,23 @@ async function votePage(id){
     }
     if(res==="ok"||res==="updated"){
       const names=picks.map(pid=>units.find(u=>u.id===pid)?.name).filter(Boolean);
-      await modal(`<div class="big">✓</div><h3>投票ありがとうございました！</h3>
-        <p class="muted">選んだユニット：<br><strong>${names.map(esc).join("、")}</strong></p>
-        <button class="primary" onclick="closeModal()">閉じる</button>`);
+      view.innerHTML=`
+        <div class="success-wrap">
+          <svg class="success-svg" width="84" height="84" viewBox="0 0 84 84" fill="none">
+            <circle cx="42" cy="42" r="38" stroke="var(--line)" stroke-width="1.5"/>
+            <circle cx="42" cy="42" r="38" stroke="var(--ok)" stroke-width="2"
+              stroke-linecap="round" class="check-circle"
+              transform="rotate(-90 42 42)"/>
+            <polyline points="24,43 36,55 60,29" stroke="var(--ok)" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round" class="check-mark"/>
+          </svg>
+          <p class="success-ttl">投票完了</p>
+          <p class="success-sub">ありがとうございました！</p>
+          ${names.length>0?`<div class="card" style="text-align:left;max-width:320px;margin:0 auto">
+            <span class="muted" style="font-size:.78rem;letter-spacing:.05em">選んだユニット</span>
+            <p style="margin:6px 0;font-weight:700;line-height:1.7">${names.map(esc).join("<br>")}</p>
+          </div>`:`<p class="muted">（0票で投票しました）</p>`}
+        </div>`;
     }else{toast("送信に失敗しました");}
   };
 }
