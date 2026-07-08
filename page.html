@@ -225,10 +225,12 @@ async function adminGate(){
       <input id="newDate" type="date">
       <label>投票方式</label>
       <select id="newPwReq">
+        <option value="" disabled selected>選択してください</option>
         <option value="pw">パスワード制（お客さんにパスワードを配布）</option>
         <option value="id">投票用ID制（お客さんが自分でIDを入力）</option>
       </select>
-      <div id="pwCountArea">
+      <p id="modeErr" class="err hide" style="font-size:.85rem;margin:4px 0 0">投票方式を選択しないと作成できません</p>
+      <div id="pwCountArea" class="hide">
         <label>お客さんの人数</label>
         <input id="newCount" type="number" min="1" value="30">
       </div>
@@ -250,18 +252,25 @@ async function adminGate(){
     </div>`;
 
   $("#newPwReq").onchange=()=>{
-    $("#pwCountArea").classList.toggle("hide",$("#newPwReq").value==="id");
+    const v=$("#newPwReq").value;
+    $("#pwCountArea").classList.toggle("hide",v!=="pw");
+    if(v)$("#modeErr").classList.add("hide");
   };
 
   $("#createBtn").onclick=async()=>{
     const name=$("#newName").value.trim();
     const date=$("#newDate").value||null;
-    const pwReq=$("#newPwReq").value==="pw";
+    const pwReqRaw=$("#newPwReq").value;
+    const pwReq=pwReqRaw==="pw";
     const count=pwReq?parseInt($("#newCount").value,10):0;
     const voteMode=$("#newVoteMode").value;
     const vppRaw=$("#newVpp").value;
     const adminPw=$("#newAdminPw").value.trim();
     if(!name){toast("ライブ名を入力してください");return;}
+    if(!pwReqRaw){
+      $("#modeErr").classList.remove("hide");
+      $("#newPwReq").focus();return;}
+    $("#modeErr").classList.add("hide");
     if(pwReq&&(!count||count<1)){toast("人数を正しく入力してください");return;}
     if(!voteMode||!vppRaw){
       $("#ruleErr").classList.remove("hide");
@@ -773,7 +782,9 @@ async function votePage(id){
             <span class="muted" style="font-size:.78rem;letter-spacing:.05em">選んだユニット</span>
             <p style="margin:6px 0;font-weight:700;line-height:1.7">${names.map(esc).join("<br>")}</p>
           </div>`:`<p class="muted">（0票で投票しました）</p>`}
+          <p class="muted" style="margin-top:28px;font-size:.82rem">しばらくすると投票画面に戻ります</p>
         </div>`;
+      setTimeout(()=>votePage(id),3000);
     }else{toast("送信に失敗しました");}
   };
 }
