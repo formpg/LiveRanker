@@ -87,7 +87,7 @@
   .success-wrap{text-align:center;padding:64px 20px 48px;animation:fade-up .35s ease both}
   @keyframes fade-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
   .success-svg{display:block;margin:0 auto 28px}
-  .check-circle{stroke-dasharray:226;stroke-dashoffset:226;
+  .check-circle{stroke-dasharray:239;stroke-dashoffset:239;
     animation:draw-arc .55s cubic-bezier(.4,0,.2,1) forwards .05s}
   .check-mark{stroke-dasharray:60;stroke-dashoffset:60;
     animation:draw-arc .36s cubic-bezier(.4,0,.2,1) forwards .52s}
@@ -756,8 +756,19 @@ async function votePage(id){
       res=await rpc("cast_vote",{p_live:id,p_pw:pw,p_units:picks,p_overwrite:true});
     }
     if(res==="exists"){
+      let prevNames=[];
+      try{
+        const prevIds=await rpc("get_my_picks",{p_live:id,p_pw:pw});
+        prevNames=(prevIds||[]).map(eid=>units.find(u=>u.id===eid)?.name).filter(Boolean);
+      }catch(_){}
       const ok=await modal(`<h3>投票を修正しますか？</h3>
         <p class="muted">${pwRequired?"このパスワード":"このID"}はすでに投票済みです。<br>新しい選択で上書きできます。</p>
+        <div style="background:#f8f5ee;border-radius:10px;padding:12px 14px;margin:12px 0;text-align:left">
+          <p style="font-size:.75rem;color:var(--muted);margin:0 0 4px;letter-spacing:.05em">前回の投票</p>
+          <p style="margin:0;font-weight:700;line-height:1.7;font-size:.95rem">
+            ${prevNames.length>0?prevNames.map(esc).join("<br>"):'<span style="color:var(--muted);font-weight:400">（0票）</span>'}
+          </p>
+        </div>
         <div class="row" style="justify-content:center;margin-top:12px">
           <button class="ghost" onclick="closeModal(false)">いいえ</button>
           <button class="primary" onclick="closeModal(true)">はい（修正する）</button></div>`);
